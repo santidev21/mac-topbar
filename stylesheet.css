@@ -1,0 +1,66 @@
+/* Logo de Fedora */
+.mac-topbar-logo {
+    -natural-hpadding: 12px;
+    -minimum-hpadding: 8px;
+}
+
+.mac-topbar-logo .system-status-icon {
+    icon-size: 16px;
+}
+
+/* Nombre de la app activa, en negrita como en macOS */
+.mac-topbar-apptitle {
+    font-weight: bold;
+    -natural-hpadding: 10px;
+    -minimum-hpadding: 6px;
+}
+
+/* Menús de la app (File, Edit…) */
+.mac-topbar-menu {
+    font-weight: normal;
+    -natural-hpadding: 8px;
+    -minimum-hpadding: 4px;
+}
+
+.mac-topbar-shortcut {
+    padding-left: 24px;
+    color: rgba(255, 255, 255, 0.55);
+    font-feature-settings: "tnum";
+}
+
+/* Diálogo Forzar salida */
+.mac-topbar-forcequit-title {
+    font-weight: bold;
+    font-size: 1.2em;
+    padding-bottom: 4px;
+}
+
+.mac-topbar-forcequit-hint {
+    padding-bottom: 12px;
+}
+
+.mac-topbar-forcequit-list {
+    min-width: 340px;
+    max-height: 320px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.06);
+    padding: 4px;
+}
+
+.mac-topbar-forcequit-row {
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+
+.mac-topbar-forcequit-row:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.mac-topbar-forcequit-row:checked {
+    background-color: -st-accent-color;
+    color: -st-accent-fg-color;
+}
+
+.mac-topbar-forcequit-rowbox {
+    spacing: 10px;
+}

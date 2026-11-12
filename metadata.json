@@ -1,0 +1,9 @@
+{
+    "uuid": "mac-topbar@santidev21",
+    "name": "Mac Topbar",
+    "description": "Barra superior estilo macOS: logo de Fedora con menú de sistema, nombre de la app activa y menú global (para apps que lo publican por DBusMenu).",
+    "shell-version": [
+        "51"
+    ],
+    "version": 1
+}
