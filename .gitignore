@@ -1,3 +1,4 @@
 *.png
 core
 core.*
+!screenshots/*.png
