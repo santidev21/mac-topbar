@@ -8,6 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {AppTitle} from './appTitle.js';
 import {GlobalMenu} from './globalMenu.js';
 import {LogoMenu} from './logoMenu.js';
+import {MenuGlassManager} from './menuGlass.js';
 
 export default class MacTopbarExtension extends Extension {
     enable() {
@@ -28,9 +29,13 @@ export default class MacTopbarExtension extends Extension {
         Main.panel.addToStatusArea('mac-topbar-apptitle', this._title, 1, 'left');
 
         this._globalMenu = new GlobalMenu(this._title);
+
+        this._menuGlass = new MenuGlassManager();
     }
 
     disable() {
+        this._menuGlass?.destroy();
+        this._menuGlass = null;
         this._globalMenu?.destroy();
         this._globalMenu = null;
         this._title?.destroy();

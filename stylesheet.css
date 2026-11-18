@@ -64,3 +64,32 @@
 .mac-topbar-forcequit-rowbox {
     spacing: 10px;
 }
+
+/* ---------- Menús de la barra con vidrio (como el dock) ----------
+   .mac-topbar-glass la pone menuGlass.js solo cuando hay blur detrás,
+   así que sin blur (p. ej. en el Overview) el menú queda opaco. */
+.popup-menu-content.mac-topbar-glass {
+    background-color: rgba(36, 36, 40, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top-color: rgba(255, 255, 255, 0.22);   /* reflejo superior */
+}
+
+/* Tarjetas internas: gris más claro, también translúcido */
+.mac-topbar-glass .message,
+.mac-topbar-glass .events-button,
+.mac-topbar-glass .world-clocks-button,
+.mac-topbar-glass .weather-button,
+.mac-topbar-glass .quick-toggle-menu {
+    background-color: rgba(255, 255, 255, 0.09);
+}
+.mac-topbar-glass .message:second-in-stack,
+.mac-topbar-glass .message:lower-in-stack {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+.mac-topbar-glass .message:hover,
+.mac-topbar-glass .events-button:hover,
+.mac-topbar-glass .world-clocks-button:hover,
+.mac-topbar-glass .weather-button:hover,
+.mac-topbar-glass .quick-toggle-menu:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
