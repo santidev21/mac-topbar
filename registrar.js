@@ -59,6 +59,15 @@ export class Registrar {
         return this._menus.get(xid);
     }
 
+    /** ¿Sigue registrada alguna ventana de este servicio DBus? */
+    hasService(service) {
+        for (const entry of this._menus.values()) {
+            if (entry.service === service)
+                return true;
+        }
+        return false;
+    }
+
     destroy() {
         Gio.bus_unown_name(this._ownId);
         this._impl.unexport();

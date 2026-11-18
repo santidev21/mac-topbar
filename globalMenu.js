@@ -100,10 +100,15 @@ export class GlobalMenu {
 
     async _refresh() {
         const gen = ++this._gen; // descarta respuestas de refrescos anteriores
-        // Un desplegable de la app enfocada no cambia los menús mostrados.
+        // Un desplegable de la app enfocada, o un momento sin ventana enfocada
+        // (los menús de Steam quitan el foco), no cambia los menús mostrados,
+        // salvo que la app que los publicó ya no esté.
         const focus = global.display.focus_window;
-        if (focus && !Main.overview.visible && isTransientPopup(focus))
+        if (!Main.overview.visible && (!focus || isTransientPopup(focus))) {
+            if (!this._client || !this._registrar.hasService(this._client.service))
+                this._clear();
             return;
+        }
         const xid = this._focusedXid();
         const entry = xid !== null ? this._registrar.lookup(xid) : undefined;
         if (!entry) {

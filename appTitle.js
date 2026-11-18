@@ -33,6 +33,8 @@ class AppTitle extends PanelMenu.Button {
         this._tracker = Shell.WindowTracker.get_default();
         this._tracker.connectObject('notify::focus-app', () => this._sync(), this);
         global.display.connectObject('notify::focus-window', () => this._sync(), this);
+        // Si la app mostrada se cierra, hay que actualizar aunque no cambie el foco.
+        Shell.AppSystem.get_default().connectObject('app-state-changed', () => this._sync(), this);
         Main.overview.connectObject(
             'showing', () => this._sync(),
             'hidden', () => this._sync(), this);
@@ -44,17 +46,33 @@ class AppTitle extends PanelMenu.Button {
     }
 
     _sync() {
-        let app = null;
-        if (!Main.overview.visible) {
-            // Un desplegable de la app (p. ej. los de Steam) no cambia de app.
-            const win = global.display.focus_window;
-            if (win && isTransientPopup(win))
-                return;
-            app = this._tracker.focus_app;
-            // Ventanas sin app reconocible (sin nombre): mantener la anterior.
-            if (app && !app.get_name())
-                return;
+        if (Main.overview.visible) {
+            this._setApp(null);
+            return;
         }
+
+        const win = global.display.focus_window;
+        // Un desplegable de la app (p. ej. los de Steam) no cambia de app.
+        if (win && isTransientPopup(win))
+            return;
+        const app = (win && this._tracker.get_window_app(win)) || this._tracker.focus_app;
+        // Ventana que GNOME no reconoce como app propia (popup "normal" de
+        // CEF/Electron) pero del mismo proceso que la app actual: misma app.
+        if (win && app?.is_window_backed() && this._app?.get_pids().includes(win.get_pid()))
+            return;
+        if (app?.get_name()) {
+            this._setApp(app);
+            return;
+        }
+
+        // Sin ventana enfocada o sin app reconocible: pasa mientras un menú de
+        // Steam tiene el control. Se mantiene la app actual si sigue abierta.
+        if (this._app && this._app.get_n_windows() > 0)
+            return;
+        this._setApp(null);
+    }
+
+    _setApp(app) {
         this._app = app;
         this.visible = app !== null;
         if (!app)
