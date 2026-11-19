@@ -100,9 +100,12 @@ class MacTopbarMenuGlass extends St.Widget {
     _sync() {
         const {actor, box} = this._menu;
         // Posición de la caja dentro del BoxPointer (sin su traslación de animación).
+        // Ojo: el BoxPointer se coloca en su asignación (allocationBox.set_origin),
+        // no con las propiedades x/y, que se quedan en 0.
         const rel = box.apply_relative_transform_to_point(actor, new Graphene.Point3D());
-        const x = Math.round(actor.x + rel.x);
-        const y = Math.round(actor.y + rel.y);
+        const alloc = actor.get_allocation_box();
+        const x = Math.round(alloc.x1 + rel.x);
+        const y = Math.round(alloc.y1 + rel.y);
         const [w, h] = [Math.round(box.width), Math.round(box.height)];
         const radius = box.get_theme_node().get_border_radius(St.Corner.TOPLEFT);
 
