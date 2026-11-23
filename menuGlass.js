@@ -76,8 +76,13 @@ class MacTopbarMenuGlass extends St.Widget {
         this.add_effect(this._mask);
 
         // Acompaña la animación de apertura/cierre del BoxPointer.
-        for (const prop of ['opacity', 'translation-x', 'translation-y', 'visible'])
+        for (const prop of ['opacity', 'translation-x', 'translation-y'])
             menu.actor.bind_property(prop, this, prop, GObject.BindingFlags.SYNC_CREATE);
+        // 'visible' no se enlaza: el vidrio solo se muestra tras un _sync válido,
+        // si no se pintaría sin asignación (tamaño 0) en la primera apertura.
+        this._synced = false;
+        this.visible = false;
+        menu.actor.connectObject('notify::visible', () => this._updateVisible(), this);
 
         Main.uiGroup.insert_child_below(this, menu.actor);
 
@@ -102,11 +107,18 @@ class MacTopbarMenuGlass extends St.Widget {
         // Posición de la caja dentro del BoxPointer (sin su traslación de animación).
         // Ojo: el BoxPointer se coloca en su asignación (allocationBox.set_origin),
         // no con las propiedades x/y, que se quedan en 0.
-        const rel = box.apply_relative_transform_to_point(actor, new Graphene.Point3D());
+        // Ojo 2: `new Graphene.Point3D()` sin campos llama a graphene_point3d_alloc(),
+        // cuyo contenido es indefinido (a veces NaN) → hay que inicializarlo.
+        if (!actor.has_allocation() || !box.has_allocation())
+            return; // aún sin asignar: notify::allocation volverá a llamar a _sync
+        const origin = new Graphene.Point3D({x: 0, y: 0, z: 0});
+        const rel = box.apply_relative_transform_to_point(actor, origin);
         const alloc = actor.get_allocation_box();
         const x = Math.round(alloc.x1 + rel.x);
         const y = Math.round(alloc.y1 + rel.y);
         const [w, h] = [Math.round(box.width), Math.round(box.height)];
+        if (![x, y, w, h].every(Number.isFinite) || w <= 0 || h <= 0)
+            return;
         const radius = box.get_theme_node().get_border_radius(St.Corner.TOPLEFT);
 
         this.set_position(x, y);
@@ -114,6 +126,12 @@ class MacTopbarMenuGlass extends St.Widget {
         this._strip.set_size(w, h);
         this._live.set_position(-x, -y);
         this._mask.setGeometry(w, h, radius);
+        this._synced = true;
+        this._updateVisible();
+    }
+
+    _updateVisible() {
+        this.visible = this._synced && this._menu.actor.visible;
     }
 
     destroy() {
