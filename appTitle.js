@@ -13,6 +13,14 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {_} from './i18n.js';
 import {isTransientPopup} from './windows.js';
 
+// Una app "window-backed" (ventana sin .desktop) que ya cerró su última ventana
+// tumba a gnome-shell si se le pide el nombre o el ícono (assert en shell-app.c).
+function usable(app) {
+    if (!app)
+        return null;
+    return app.is_window_backed() && app.get_n_windows() === 0 ? null : app;
+}
+
 export const AppTitle = GObject.registerClass(
 class AppTitle extends PanelMenu.Button {
     _init() {
@@ -55,7 +63,9 @@ class AppTitle extends PanelMenu.Button {
         // Un desplegable de la app (p. ej. los de Steam) no cambia de app.
         if (win && isTransientPopup(win))
             return;
-        const app = (win && this._tracker.get_window_app(win)) || this._tracker.focus_app;
+        if (this._app && !usable(this._app))
+            this._app = null;
+        const app = usable((win && this._tracker.get_window_app(win)) || this._tracker.focus_app);
         // Ventana que GNOME no reconoce como app propia (popup "normal" de
         // CEF/Electron) pero del mismo proceso que la app actual: misma app.
         if (win && app?.is_window_backed() && this._app?.get_pids().includes(win.get_pid()))
