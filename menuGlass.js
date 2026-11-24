@@ -24,6 +24,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as MessageList from 'resource:///org/gnome/shell/ui/messageList.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -89,6 +90,11 @@ class MacTopbarMenuGlass extends St.Widget {
         const queue = () => this._queueSync();
         menu.actor.connectObject('notify::allocation', queue, this);
         menu.box.connectObject('notify::allocation', queue, this);
+        // Red de seguridad: tras cada frame se comprueba la geometría. El later de
+        // notify::allocation a veces no llega a correr tras el último cambio de
+        // tamaño (p. ej. al plegar un grupo de notificaciones) y el vidrio se
+        // quedaba con el alto viejo. _sync solo toca algo si la geometría cambió.
+        global.stage.connectObject('after-update', () => this._sync(), this);
         this._queueSync();
     }
 
@@ -121,6 +127,11 @@ class MacTopbarMenuGlass extends St.Widget {
             return;
         const radius = box.get_theme_node().get_border_radius(St.Corner.TOPLEFT);
 
+        const geometry = `${x},${y},${w},${h},${radius}`;
+        if (geometry === this._geometry)
+            return;
+        this._geometry = geometry;
+
         this.set_position(x, y);
         this.set_size(w, h);
         this._strip.set_size(w, h);
@@ -141,9 +152,67 @@ class MacTopbarMenuGlass extends St.Widget {
         }
         this._menu.actor.disconnectObject(this);
         this._menu.box.disconnectObject(this);
+        global.stage.disconnectObject(this);
         super.destroy();
     }
 });
+
+// Notificaciones apiladas (grupo colapsado): GNOME las pone una encima de otra y
+// confía en que la tarjeta de arriba sea opaca para taparlas. Con el vidrio son
+// translúcidas: se vería el texto encimado y las tarjetas se sumarían. Así que
+// cada tarjeta apilada se recorta a la franja que asoma bajo la anterior y su
+// contenido se oculta.
+const STACK_PSEUDO_CLASSES = ['second-in-stack', 'lower-in-stack'];
+
+function isStacked(message) {
+    return STACK_PSEUDO_CLASSES.some(c => message.has_style_pseudo_class(c));
+}
+
+function resetStackItem(item) {
+    item.remove_clip();
+    if (item.child?.child)
+        item.child.child.opacity = 255;
+}
+
+function syncStack(group, touched) {
+    let prevBottom = null;
+    for (const item of group.get_children()) {
+        const message = item.child;
+        if (!(message instanceof MessageList.Message) || !message.child)
+            continue;
+
+        if (!touched.has(item)) {
+            touched.add(item);
+            // Los hijos se reasignan sin que cambie el grupo (animaciones, cierre).
+            item.connectObject(
+                'notify::allocation', () => syncStack(group, touched),
+                'destroy', () => touched.delete(item),
+                touched);
+        }
+
+        const box = item.get_allocation_box();
+        if (isStacked(message) && prevBottom !== null) {
+            const [w, h] = [box.x2 - box.x1, box.y2 - box.y1];
+            const top = Math.min(h, Math.max(0, Math.round(prevBottom - box.y1)));
+            item.set_clip(0, top, w, h - top); // alto 0 = tapada del todo
+            message.child.opacity = 0;
+        } else {
+            resetStackItem(item);
+        }
+        prevBottom = prevBottom === null ? box.y2 : Math.max(prevBottom, box.y2);
+    }
+}
+
+// Grupos ya existentes (p. ej. notificaciones restauradas al iniciar sesión, antes
+// de que cargue la extensión): el gancho de _updateStackedMessagesFade no los vio.
+function syncStacksIn(actor, touched) {
+    if (actor instanceof MessageList.NotificationMessageGroup) {
+        syncStack(actor, touched);
+        return;
+    }
+    for (const child of actor.get_children())
+        syncStacksIn(child, touched);
+}
 
 function isPanelMenu(menu) {
     return menu?.actor?.has_style_class_name?.('panel-menu') && menu.box;
@@ -167,6 +236,15 @@ export class MenuGlassManager {
         this._menus = new Set();
         this._injections = new InjectionManager();
         const menus = this._menus;
+        const touched = this._stackItems = new Set();
+
+        this._injections.overrideMethod(MessageList.NotificationMessageGroup.prototype,
+            '_updateStackedMessagesFade', orig =>
+                function (...args) {
+                    const ret = orig.apply(this, args);
+                    syncStack(this, touched);
+                    return ret;
+                });
 
         // Todos los menús de la barra heredan de PopupMenu: se intercepta en el
         // prototipo para cubrir también los que se crean después (menús globales).
@@ -174,6 +252,7 @@ export class MenuGlassManager {
             function (...args) {
                 if (isPanelMenu(this)) {
                     attach(this);
+                    syncStacksIn(this.box, touched);
                     menus.add(this);
                 }
                 return orig.apply(this, args);
@@ -205,6 +284,11 @@ export class MenuGlassManager {
 
     destroy() {
         this._injections.clear();
+        for (const item of this._stackItems) {
+            item.disconnectObject(this._stackItems);
+            resetStackItem(item);
+        }
+        this._stackItems.clear();
         for (const menu of this._menus) {
             menu.actor?.disconnectObject(this._menus);
             detach(menu);
